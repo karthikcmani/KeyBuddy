@@ -26,6 +26,17 @@ public class AppSettings
     public bool EnableLongPress2For4 { get; set; } = true;
     public bool EnableLongPressAForAt { get; set; } = true;
 
+    // List of keys to show in the Quick Rescue Bar (Default: P, 4, Backspace)
+    public List<string> QuickBarKeys { get; set; } = new() { "P", "4", "Backspace" };
+
+    // Dynamic Hold-to-Replace mapping rules
+    public List<KeyMappingRule> CustomMappingRules { get; set; } = new()
+    {
+        new KeyMappingRule("O", "P", "Hold 'O' to type 'P'"),
+        new KeyMappingRule("2", "4", "Hold '2' to type '4'"),
+        new KeyMappingRule("A", "@", "Hold 'A' to type '@'")
+    };
+
     private static readonly string SettingsFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "KeyBuddy");
