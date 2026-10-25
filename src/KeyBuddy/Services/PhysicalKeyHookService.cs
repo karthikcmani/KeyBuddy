@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -16,36 +18,27 @@ public class PhysicalKeyHookService : IDisposable
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
 
-    private const int VK_O = 0x4F;
-    private const int VK_2 = 0x32;
-    private const int VK_NUMPAD2 = 0x62;
-    private const int VK_A = 0x41;
-
     private readonly IKeyboardInputService _inputService;
     private readonly ModifierState _modifiers;
 
     private IntPtr _hookId = IntPtr.Zero;
     private LowLevelKeyboardProc? _proc;
 
-    // Timer and states for 'O' -> 'P'
-    private readonly System.Threading.Timer _longPressOTimer;
-    private bool _isODown;
-    private bool _longPressOTriggered;
-
-    // Timer and states for '2' -> '4'
-    private readonly System.Threading.Timer _longPress2Timer;
-    private bool _is2Down;
-    private bool _longPress2Triggered;
-
-    // Timer and states for 'A' -> '@'
-    private readonly System.Threading.Timer _longPressATimer;
-    private bool _isADown;
-    private bool _longPressATriggered;
-
-    // Milliseconds to consider a hold/long-press
     public int LongPressThresholdMs { get; set; } = 350;
-
     public bool IsEnabled { get; set; } = true;
+
+    private class ActiveHookRule
+    {
+        public KeyMappingRule Rule { get; set; } = null!;
+        public uint PrimaryVk { get; set; }
+        public uint? SecondaryVk { get; set; } // e.g. numpad equivalent
+        public System.Threading.Timer? Timer { get; set; }
+        public bool IsDown { get; set; }
+        public bool Triggered { get; set; }
+    }
+
+    private readonly List<ActiveHookRule> _activeRules = new();
+    private readonly object _lock = new();
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -76,9 +69,71 @@ public class PhysicalKeyHookService : IDisposable
     {
         _inputService = inputService;
         _modifiers = modifiers;
-        _longPressOTimer = new System.Threading.Timer(OnLongPressOCallback, null, Timeout.Infinite, Timeout.Infinite);
-        _longPress2Timer = new System.Threading.Timer(OnLongPress2Callback, null, Timeout.Infinite, Timeout.Infinite);
-        _longPressATimer = new System.Threading.Timer(OnLongPressACallback, null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+    public void LoadRules(IEnumerable<KeyMappingRule> rules, int thresholdMs)
+    {
+        lock (_lock)
+        {
+            LongPressThresholdMs = thresholdMs;
+
+            // Dispose old timers
+            foreach (var r in _activeRules)
+            {
+                r.Timer?.Dispose();
+            }
+            _activeRules.Clear();
+
+            foreach (var rule in rules)
+            {
+                if (!rule.IsEnabled || string.IsNullOrWhiteSpace(rule.TriggerKey) || string.IsNullOrWhiteSpace(rule.OutputKey))
+                {
+                    continue;
+                }
+
+                var (pVk, sVk) = ResolveVk(rule.TriggerKey);
+                if (pVk == 0) continue;
+
+                var hookRule = new ActiveHookRule
+                {
+                    Rule = rule,
+                    PrimaryVk = pVk,
+                    SecondaryVk = sVk
+                };
+
+                hookRule.Timer = new System.Threading.Timer(OnRuleTimerCallback, hookRule, Timeout.Infinite, Timeout.Infinite);
+                _activeRules.Add(hookRule);
+            }
+        }
+    }
+
+    private static (uint primary, uint? secondary) ResolveVk(string keyName)
+    {
+        string norm = keyName.Trim().ToUpperInvariant();
+        if (norm.Length == 1)
+        {
+            char c = norm[0];
+            if (c >= 'A' && c <= 'Z')
+            {
+                return ((uint)c, null);
+            }
+            if (c >= '0' && c <= '9')
+            {
+                uint baseVk = (uint)(0x30 + (c - '0'));
+                uint numpadVk = (uint)(0x60 + (c - '0'));
+                return (baseVk, numpadVk);
+            }
+        }
+
+        return norm switch
+        {
+            "SPACE" => (0x20, null),
+            "TAB" => (0x09, null),
+            "ENTER" or "RETURN" => (0x0D, null),
+            "ESC" or "ESCAPE" => (0x1B, null),
+            "BACKSPACE" => (0x08, null),
+            _ => (0, null)
+        };
     }
 
     public void Start()
@@ -98,15 +153,16 @@ public class PhysicalKeyHookService : IDisposable
             UnhookWindowsHookEx(_hookId);
             _hookId = IntPtr.Zero;
         }
-        _longPressOTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        _longPress2Timer.Change(Timeout.Infinite, Timeout.Infinite);
-        _longPressATimer.Change(Timeout.Infinite, Timeout.Infinite);
-        _isODown = false;
-        _longPressOTriggered = false;
-        _is2Down = false;
-        _longPress2Triggered = false;
-        _isADown = false;
-        _longPressATriggered = false;
+
+        lock (_lock)
+        {
+            foreach (var r in _activeRules)
+            {
+                r.Timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                r.IsDown = false;
+                r.Triggered = false;
+            }
+        }
     }
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
@@ -121,77 +177,32 @@ public class PhysicalKeyHookService : IDisposable
             {
                 int msg = wParam.ToInt32();
 
-                // 1. Long press 'O' -> 'P'
-                if (kbd.vkCode == VK_O)
+                lock (_lock)
                 {
-                    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
+                    foreach (var rule in _activeRules)
                     {
-                        if (!_isODown)
+                        if (kbd.vkCode == rule.PrimaryVk || (rule.SecondaryVk.HasValue && kbd.vkCode == rule.SecondaryVk.Value))
                         {
-                            _isODown = true;
-                            _longPressOTriggered = false;
-                            _longPressOTimer.Change(LongPressThresholdMs, Timeout.Infinite);
-                        }
-                    }
-                    else if (msg == WM_KEYUP || msg == WM_SYSKEYUP)
-                    {
-                        _isODown = false;
-                        _longPressOTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                            if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
+                            {
+                                if (!rule.IsDown)
+                                {
+                                    rule.IsDown = true;
+                                    rule.Triggered = false;
+                                    rule.Timer?.Change(LongPressThresholdMs, Timeout.Infinite);
+                                }
+                            }
+                            else if (msg == WM_KEYUP || msg == WM_SYSKEYUP)
+                            {
+                                rule.IsDown = false;
+                                rule.Timer?.Change(Timeout.Infinite, Timeout.Infinite);
 
-                        if (_longPressOTriggered)
-                        {
-                            _longPressOTriggered = false;
-                            return (IntPtr)1; // Block keyup event
-                        }
-                    }
-                }
-
-                // 2. Long press '2' (number row or numpad) -> '4'
-                if (kbd.vkCode == VK_2 || kbd.vkCode == VK_NUMPAD2)
-                {
-                    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
-                    {
-                        if (!_is2Down)
-                        {
-                            _is2Down = true;
-                            _longPress2Triggered = false;
-                            _longPress2Timer.Change(LongPressThresholdMs, Timeout.Infinite);
-                        }
-                    }
-                    else if (msg == WM_KEYUP || msg == WM_SYSKEYUP)
-                    {
-                        _is2Down = false;
-                        _longPress2Timer.Change(Timeout.Infinite, Timeout.Infinite);
-
-                        if (_longPress2Triggered)
-                        {
-                            _longPress2Triggered = false;
-                            return (IntPtr)1; // Block keyup event
-                        }
-                    }
-                }
-
-                // 3. Long press 'A' -> '@'
-                if (kbd.vkCode == VK_A)
-                {
-                    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
-                    {
-                        if (!_isADown)
-                        {
-                            _isADown = true;
-                            _longPressATriggered = false;
-                            _longPressATimer.Change(LongPressThresholdMs, Timeout.Infinite);
-                        }
-                    }
-                    else if (msg == WM_KEYUP || msg == WM_SYSKEYUP)
-                    {
-                        _isADown = false;
-                        _longPressATimer.Change(Timeout.Infinite, Timeout.Infinite);
-
-                        if (_longPressATriggered)
-                        {
-                            _longPressATriggered = false;
-                            return (IntPtr)1; // Block keyup event
+                                if (rule.Triggered)
+                                {
+                                    rule.Triggered = false;
+                                    return (IntPtr)1; // Block keyup event
+                                }
+                            }
                         }
                     }
                 }
@@ -201,64 +212,66 @@ public class PhysicalKeyHookService : IDisposable
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
     }
 
-    private void OnLongPressOCallback(object? state)
+    private void OnRuleTimerCallback(object? state)
     {
-        if (_isODown && !_longPressOTriggered)
+        if (state is not ActiveHookRule rule) return;
+
+        lock (_lock)
         {
-            _longPressOTriggered = true;
-
-            // 1. Backspace the 'o' character that Windows already typed
-            var bsKey = KeyModel.Create("BACKSPACE", "Backspace", VirtualKeys.VK_BACK);
-            _inputService.SendKeyPress(bsKey, _modifiers);
-
-            Thread.Sleep(20);
-
-            // 2. Type 'P' (or 'p')
-            var pKey = KeyModel.Create("P", "p", VirtualKeys.VK_P);
-            _inputService.SendKeyPress(pKey, _modifiers);
+            if (!rule.IsDown || rule.Triggered) return;
+            rule.Triggered = true;
         }
-    }
 
-    private void OnLongPress2Callback(object? state)
-    {
-        if (_is2Down && !_longPress2Triggered)
+        try
         {
-            _longPress2Triggered = true;
-
-            // 1. Backspace the '2' character that Windows already typed
+            // 1. Backspace the trigger character that Windows naturally typed
             var bsKey = KeyModel.Create("BACKSPACE", "Backspace", VirtualKeys.VK_BACK);
             _inputService.SendKeyPress(bsKey, _modifiers);
 
-            Thread.Sleep(20);
+            Thread.Sleep(25);
 
-            // 2. Type '4' (or '$' if Shift is held)
-            var fourKey = KeyModel.Create("4", "4", VirtualKeys.VK_4);
-            _inputService.SendKeyPress(fourKey, _modifiers);
+            // 2. Type output key / text
+            string output = rule.Rule.OutputKey;
+            if (output.Length == 1 && char.IsLetterOrDigit(output[0]))
+            {
+                char outChar = output[0];
+                uint outVk = 0;
+                if (char.IsLetter(outChar))
+                {
+                    outVk = (uint)char.ToUpperInvariant(outChar);
+                }
+                else if (char.IsDigit(outChar))
+                {
+                    outVk = (uint)(0x30 + (outChar - '0'));
+                }
+
+                if (outVk != 0)
+                {
+                    var targetKey = KeyModel.Create(output, output, (ushort)outVk);
+                    _inputService.SendKeyPress(targetKey, _modifiers);
+                    return;
+                }
+            }
+
+            // Fallback for special symbols (e.g. '@', '$', '#', etc.) or text
+            _inputService.SendUnicodeText(output);
         }
-    }
-
-    private void OnLongPressACallback(object? state)
-    {
-        if (_isADown && !_longPressATriggered)
+        catch (Exception ex)
         {
-            _longPressATriggered = true;
-
-            // 1. Backspace the 'a' character that Windows already typed
-            var bsKey = KeyModel.Create("BACKSPACE", "Backspace", VirtualKeys.VK_BACK);
-            _inputService.SendKeyPress(bsKey, _modifiers);
-
-            Thread.Sleep(20);
-
-            // 2. Send Unicode '@' directly
-            _inputService.SendUnicodeText("@");
+            Debug.WriteLine($"Error executing hold-to-replace rule: {ex.Message}");
         }
     }
 
     public void Dispose()
     {
         Stop();
-        _longPressOTimer.Dispose();
-        _longPress2Timer.Dispose();
-        _longPressATimer.Dispose();
+        lock (_lock)
+        {
+            foreach (var r in _activeRules)
+            {
+                r.Timer?.Dispose();
+            }
+            _activeRules.Clear();
+        }
     }
 }

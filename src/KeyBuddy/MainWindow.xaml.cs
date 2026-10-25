@@ -40,6 +40,7 @@ public partial class MainWindow : Window
         _viewModel.OnRequestToggleSpecialSymbols += ToggleSpecialKeysWindow;
 
         // Populate dynamic key layouts
+        BuildQuickBarGrid();
         BuildMainKeyboardGrid();
         BuildNavClusterGrid();
         BuildNumpadGrid();
@@ -76,11 +77,9 @@ public partial class MainWindow : Window
             _sysUtils.SetStartupRun(true);
         }
 
-        // Start physical key hook for 'O' -> 'P' long-press if enabled
-        if (_viewModel.Settings.EnableLongPressOForP)
-        {
-            _physicalKeyHook.Start();
-        }
+        // Start physical key hook for dynamic hold-to-replace shortcuts
+        _physicalKeyHook.LoadRules(_viewModel.Settings.CustomMappingRules, _viewModel.Settings.LongPressThresholdMs);
+        _physicalKeyHook.Start();
 
         ValidateWindowBounds();
     }
@@ -315,6 +314,170 @@ public partial class MainWindow : Window
     {
         _sysUtils.SetStartupRun(_viewModel.Settings.StartWithWindows);
         _viewModel.Settings.Save();
+    }
+
+    private void BuildQuickBarGrid()
+    {
+        QuickBarGrid.RowDefinitions.Clear();
+        QuickBarGrid.ColumnDefinitions.Clear();
+        QuickBarGrid.Children.Clear();
+
+        var keys = _viewModel.Settings.QuickBarKeys;
+        if (keys == null || keys.Count == 0)
+        {
+            keys = new List<string> { "P", "4", "Backspace" };
+        }
+
+        // Dynamically adjust window width if more than 3 keys
+        if (_viewModel.Settings.MiniTrioOnly)
+        {
+            double neededWidth = Math.Max(280, keys.Count * 95);
+            if (Width != neededWidth)
+            {
+                Width = neededWidth;
+            }
+        }
+
+        for (int i = 0; i < keys.Count; i++)
+        {
+            string keyName = keys[i];
+            bool isWide = string.Equals(keyName, "Backspace", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(keyName, "Enter", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(keyName, "Space", StringComparison.OrdinalIgnoreCase);
+
+            QuickBarGrid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(isWide ? 1.35 : 1.0, GridUnitType.Star)
+            });
+
+            var btn = CreateQuickBarButton(keyName);
+            Grid.SetColumn(btn, i);
+            QuickBarGrid.Children.Add(btn);
+        }
+    }
+
+    private Button CreateQuickBarButton(string keyName)
+    {
+        var btn = new Button
+        {
+            Style = (Style)FindResource("VirtualKeyButtonStyle"),
+            Margin = new Thickness(3),
+            Cursor = Cursors.Hand,
+            Focusable = false
+        };
+
+        var keyModel = ResolveKeyModel(keyName);
+        btn.Command = _viewModel.KeyClickCommand;
+        btn.CommandParameter = keyModel;
+
+        if (keyModel.CanRepeat)
+        {
+            btn.PreviewMouseDown += OnKeyButtonPreviewMouseDown;
+            btn.PreviewMouseUp += OnKeyButtonPreviewMouseUp;
+        }
+
+        var viewbox = new Viewbox
+        {
+            MaxHeight = 72,
+            MaxWidth = 110,
+            Stretch = System.Windows.Media.Stretch.Uniform
+        };
+
+        var tb = new TextBlock
+        {
+            Text = GetDisplaySymbol(keyName),
+            FontWeight = FontWeights.Bold,
+            Foreground = GetKeyColor(keyName)
+        };
+
+        viewbox.Child = tb;
+        btn.Content = viewbox;
+        return btn;
+    }
+
+    private static string GetDisplaySymbol(string keyName)
+    {
+        return keyName.ToUpperInvariant() switch
+        {
+            "BACKSPACE" or "BS" => "⌫",
+            "ENTER" or "RETURN" => "↵",
+            "SPACE" => "␣",
+            "TAB" => "⇥",
+            "DELETE" or "DEL" => "Del",
+            "ESC" or "ESCAPE" => "Esc",
+            "UP" => "▲",
+            "DOWN" => "▼",
+            "LEFT" => "◀",
+            "RIGHT" => "▶",
+            _ => keyName
+        };
+    }
+
+    private static System.Windows.Media.Brush GetKeyColor(string keyName)
+    {
+        return keyName.ToUpperInvariant() switch
+        {
+            "BACKSPACE" or "BS" or "DEL" or "DELETE" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x8A, 0x65)),
+            "ENTER" or "RETURN" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x69, 0xF0, 0xAE)),
+            "SPACE" or "TAB" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD5, 0x4F)),
+            "ESC" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xEF, 0x53, 0x50)),
+            _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x64, 0xB5, 0xF6))
+        };
+    }
+
+    private static KeyModel ResolveKeyModel(string keyName)
+    {
+        string norm = keyName.Trim().ToUpperInvariant();
+        return norm switch
+        {
+            "BACKSPACE" or "BS" => KeyModel.Create("BACKSPACE", "Backspace", VirtualKeys.VK_BACK, canRepeat: true),
+            "ENTER" or "RETURN" => KeyModel.Create("ENTER", "Enter", VirtualKeys.VK_RETURN),
+            "SPACE" => KeyModel.Create("SPACE", " ", VirtualKeys.VK_SPACE),
+            "TAB" => KeyModel.Create("TAB", "Tab", VirtualKeys.VK_TAB),
+            "DELETE" or "DEL" => KeyModel.Create("DELETE", "Delete", VirtualKeys.VK_DELETE, canRepeat: true),
+            "ESC" or "ESCAPE" => KeyModel.Create("ESC", "Esc", VirtualKeys.VK_ESCAPE),
+            "UP" => KeyModel.Create("UP", "Up", VirtualKeys.VK_UP, canRepeat: true),
+            "DOWN" => KeyModel.Create("DOWN", "Down", VirtualKeys.VK_DOWN, canRepeat: true),
+            "LEFT" => KeyModel.Create("LEFT", "Left", VirtualKeys.VK_LEFT, canRepeat: true),
+            "RIGHT" => KeyModel.Create("RIGHT", "Right", VirtualKeys.VK_RIGHT, canRepeat: true),
+            _ => norm.Length == 1 && char.IsLetter(norm[0])
+                ? KeyModel.Create(norm, norm.ToLowerInvariant(), (ushort)norm[0])
+                : norm.Length == 1 && char.IsDigit(norm[0])
+                    ? KeyModel.Create(norm, norm, (ushort)(0x30 + (norm[0] - '0')))
+                    : KeyModel.Create(keyName, keyName, 0, specialAction: $"Unicode:{keyName}")
+        };
+    }
+
+    private void OnOpenSettingsWindowClick(object sender, RoutedEventArgs e)
+    {
+        var win = new SettingsWindow(_viewModel.Settings, OnSettingsApplied);
+        win.Owner = this;
+        win.ShowDialog();
+    }
+
+    private void OnSettingsApplied(AppSettings newSettings)
+    {
+        Topmost = newSettings.AlwaysOnTop;
+        Opacity = newSettings.WindowOpacity;
+        _sysUtils.SetStartupRun(newSettings.StartWithWindows);
+
+        _physicalKeyHook.LoadRules(newSettings.CustomMappingRules, newSettings.LongPressThresholdMs);
+
+        // Adjust dimensions based on mode
+        if (newSettings.MiniTrioOnly)
+        {
+            Width = Math.Max(280, newSettings.QuickBarKeys.Count * 95);
+            Height = 95;
+            ResizeMode = ResizeMode.NoResize;
+        }
+        else
+        {
+            Width = 980;
+            Height = 320;
+            ResizeMode = ResizeMode.CanResize;
+        }
+
+        BuildQuickBarGrid();
     }
 
     private void OnMainWindowClosing(object? sender, CancelEventArgs e)

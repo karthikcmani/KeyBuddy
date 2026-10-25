@@ -163,6 +163,13 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        if (key.SpecialAction?.StartsWith("Unicode:") == true)
+        {
+            string txt = key.SpecialAction.Substring("Unicode:".Length);
+            _inputService.SendUnicodeText(txt);
+            return;
+        }
+
         if (key.SpecialAction == "None") return;
 
         switch (key.Id)

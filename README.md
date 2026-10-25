@@ -12,8 +12,12 @@ If some keys on your laptop or mechanical keyboard have stopped working (due to 
 
 ## ✨ Features
 
+- 🛠️ **Full Customization Window**: Click the gear icon (`⚙️`) anytime to open the settings panel:
+  - **Rescue Bar Keys**: Choose exactly which keys appear on your floating bar. Add letters, numbers, symbols, Backspace, Enter, Tab, Space, Esc, or Delete with 1 click.
+  - **Physical Hold-to-Replace Shortcuts**: Map any working physical key on your keyboard to type a broken key when held down (e.g. Hold `O` $\rightarrow$ `P`, Hold `2` $\rightarrow$ `4`, Hold `A` $\rightarrow$ `@`). Add, toggle, or delete rules, and tune the hold delay slider.
+  - **Layout Mode & General**: Seamlessly switch between the compact floating Rescue Bar and the full on-screen keyboard, toggle Always-On-Top, and adjust opacity.
 - 🎯 **Never Steals Keyboard Focus**: Built with native Win32 `WS_EX_NOACTIVATE` & `WM_MOUSEACTIVATE` architectures. Clicking keys on KeyBuddy delivers keystrokes directly into your target app (Notepad, Chrome, VS Code, Slack, Word, Terminal) without switching windows or stealing cursor focus.
-- ⚡ **Rescue Quick Bar**: An ultra-compact floating widget ($300 \times 95$ px) showing only your chosen rescue keys (e.g., `P`, `4`, `⌫ Backspace`).
+- ⚡ **Dynamic Rescue Bar**: An ultra-compact floating widget ($300 \times 95$ px) showing your chosen rescue keys.
 - ⌨️ **Hold-to-Replace Physical Key Shortcuts**:
   - Hold physical **`O`** $\rightarrow$ Types **`P`**
   - Hold physical **`2`** $\rightarrow$ Types **`4`**

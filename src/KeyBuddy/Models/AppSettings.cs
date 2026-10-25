@@ -25,6 +25,7 @@ public class AppSettings
     public bool EnableLongPressOForP { get; set; } = true;
     public bool EnableLongPress2For4 { get; set; } = true;
     public bool EnableLongPressAForAt { get; set; } = true;
+    public int LongPressThresholdMs { get; set; } = 350;
 
     // List of keys to show in the Quick Rescue Bar (Default: P, 4, Backspace)
     public List<string> QuickBarKeys { get; set; } = new() { "P", "4", "Backspace" };
