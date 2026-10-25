@@ -6,6 +6,8 @@ if (-not (Test-Path $dotnet)) {
     $dotnet = "dotnet"
 }
 
+Set-Location $PSScriptRoot
+
 & $dotnet build KeyBuddy.sln -c Release
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed with exit code $LASTEXITCODE"

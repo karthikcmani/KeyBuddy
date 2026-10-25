@@ -6,7 +6,9 @@ if (-not (Test-Path $dotnet)) {
     $dotnet = "dotnet"
 }
 
-$publishDir = "d:\On-Screen Keyboard\publish"
+Set-Location $PSScriptRoot
+
+$publishDir = Join-Path $PSScriptRoot "publish"
 if (Test-Path $publishDir) {
     Remove-Item -Path $publishDir -Recurse -Force
 }
