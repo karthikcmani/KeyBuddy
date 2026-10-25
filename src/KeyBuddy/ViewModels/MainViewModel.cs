@@ -78,6 +78,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ToggleSpecialSymbolsCommand { get; }
 
     public event Action? OnRequestToggleSpecialSymbols;
+    public event Action? OnRequestModeChanged;
 
     public MainViewModel(
         IKeyboardInputService inputService,
@@ -141,6 +142,7 @@ public class MainViewModel : INotifyPropertyChanged
         ToggleMiniTrioCommand = new RelayCommand(() =>
         {
             Settings.MiniTrioOnly = !Settings.MiniTrioOnly;
+            OnRequestModeChanged?.Invoke();
             OnPropertyChanged(nameof(Settings));
             Settings.Save();
         });

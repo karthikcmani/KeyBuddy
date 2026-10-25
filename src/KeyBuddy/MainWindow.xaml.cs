@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         _physicalKeyHook = new PhysicalKeyHookService(inputService, _viewModel.Modifiers);
 
         _viewModel.OnRequestToggleSpecialSymbols += ToggleSpecialKeysWindow;
+        _viewModel.OnRequestModeChanged += ApplyLayoutModeDimensions;
 
         // Populate dynamic key layouts
         BuildQuickBarGrid();
@@ -81,6 +82,7 @@ public partial class MainWindow : Window
         _physicalKeyHook.LoadRules(_viewModel.Settings.CustomMappingRules, _viewModel.Settings.LongPressThresholdMs);
         _physicalKeyHook.Start();
 
+        ApplyLayoutModeDimensions();
         ValidateWindowBounds();
     }
 
@@ -455,6 +457,38 @@ public partial class MainWindow : Window
         win.ShowDialog();
     }
 
+    public void ApplyLayoutModeDimensions()
+    {
+        if (_viewModel.Settings.MiniTrioOnly)
+        {
+            int keyCount = _viewModel.Settings.QuickBarKeys?.Count ?? 3;
+            double desiredWidth = Math.Max(280, keyCount * 78);
+            Width = desiredWidth;
+            Height = 95;
+            MinWidth = 200;
+            MinHeight = 85;
+            ResizeMode = ResizeMode.NoResize;
+            _viewModel.Settings.WindowWidth = Width;
+            _viewModel.Settings.WindowHeight = Height;
+            BuildQuickBarGrid();
+        }
+        else
+        {
+            if (Width < 700 || Height < 260)
+            {
+                Width = 980;
+                Height = 320;
+            }
+            MinWidth = 650;
+            MinHeight = 240;
+            ResizeMode = ResizeMode.CanResize;
+            _viewModel.Settings.WindowWidth = Width;
+            _viewModel.Settings.WindowHeight = Height;
+        }
+
+        ValidateWindowBounds();
+    }
+
     private void OnSettingsApplied(AppSettings newSettings)
     {
         Topmost = newSettings.AlwaysOnTop;
@@ -463,21 +497,7 @@ public partial class MainWindow : Window
 
         _physicalKeyHook.LoadRules(newSettings.CustomMappingRules, newSettings.LongPressThresholdMs);
 
-        // Adjust dimensions based on mode
-        if (newSettings.MiniTrioOnly)
-        {
-            Width = Math.Max(280, newSettings.QuickBarKeys.Count * 95);
-            Height = 95;
-            ResizeMode = ResizeMode.NoResize;
-        }
-        else
-        {
-            Width = 980;
-            Height = 320;
-            ResizeMode = ResizeMode.CanResize;
-        }
-
-        BuildQuickBarGrid();
+        ApplyLayoutModeDimensions();
     }
 
     private void OnMainWindowClosing(object? sender, CancelEventArgs e)
