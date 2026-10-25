@@ -214,12 +214,23 @@
                                         <TextBlock Text="Replacement to Type:" FontSize="11" Foreground="#CFD8DC" Margin="0,0,0,3" />
                                         <TextBox x:Name="RuleOutputInput" Height="28" VerticalContentAlignment="Center"
                                                  Background="#2A2C38" Foreground="White" BorderBrush="#45485E" Padding="6,2"
-                                                 ToolTip="Character or symbol to type, e.g. 'P', '4', '@', '$'" />
+                                                 ToolTip="Type any text or pick a special key preset below (e.g. Backspace, Enter, Tab)" />
                                     </StackPanel>
 
                                     <Button Grid.Column="3" Style="{StaticResource PrimaryButtonStyle}" Content="➕ Add Rule"
                                             Click="OnAddRuleClick" Margin="12,18,0,0" Height="28" Padding="12,2" VerticalAlignment="Center" />
                                 </Grid>
+
+                                <!-- Quick Special Keys Presets for Replacement -->
+                                <WrapPanel Margin="0,6,0,0">
+                                    <TextBlock Text="Quick Actions:" FontSize="11" Foreground="#90A4AE" VerticalAlignment="Center" Margin="0,0,8,4" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="⌫ Backspace" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#FFAB91" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="↵ Enter" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#A5D6A7" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="⇥ Tab" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#90CAF9" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="␣ Space" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#FFE082" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="Del Delete" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#FFCC80" />
+                                    <Button Style="{StaticResource DialogButtonStyle}" Content="Esc" Click="OnRulePresetOutputClick" Margin="0,0,6,4" Padding="8,3" FontSize="11" Foreground="#EF9A9A" />
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

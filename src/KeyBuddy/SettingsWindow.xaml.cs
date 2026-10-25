@@ -236,15 +236,60 @@ public partial class SettingsWindow : Window
         });
         textStack.Children.Add(new TextBlock
         {
-            Text = $"'{rule.OutputKey}'",
+            Text = $"'{GetRuleDisplayOutput(rule.OutputKey)}'",
             FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6)),
+            Foreground = GetRuleOutputBrush(rule.OutputKey),
             FontSize = 12
         });
 
         dock.Children.Add(textStack);
         border.Child = dock;
         return border;
+    }
+
+    private static string GetRuleDisplayOutput(string output)
+    {
+        return output.ToUpperInvariant() switch
+        {
+            "BACKSPACE" or "BS" or "⌫" => "⌫ Backspace",
+            "ENTER" or "RETURN" or "↵" => "↵ Enter",
+            "TAB" or "⇥" => "⇥ Tab",
+            "SPACE" or "␣" => "␣ Space",
+            "DELETE" or "DEL" => "Del Delete",
+            "ESC" or "ESCAPE" => "Esc",
+            _ => output
+        };
+    }
+
+    private static SolidColorBrush GetRuleOutputBrush(string output)
+    {
+        return output.ToUpperInvariant() switch
+        {
+            "BACKSPACE" or "BS" or "⌫" => new SolidColorBrush(Color.FromRgb(0xFF, 0xAB, 0x91)),
+            "ENTER" or "RETURN" or "↵" => new SolidColorBrush(Color.FromRgb(0xA5, 0xD6, 0xA7)),
+            "TAB" or "⇥" => new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9)),
+            "SPACE" or "␣" => new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x82)),
+            "DELETE" or "DEL" => new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0x80)),
+            _ => new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6))
+        };
+    }
+
+    private void OnRulePresetOutputClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Content is string text)
+        {
+            string key = text switch
+            {
+                "⌫ Backspace" => "Backspace",
+                "↵ Enter" => "Enter",
+                "⇥ Tab" => "Tab",
+                "␣ Space" => "Space",
+                "Del Delete" => "Delete",
+                "Esc" => "Esc",
+                _ => text
+            };
+            RuleOutputInput.Text = key;
+        }
     }
 
     private void OnAddRuleClick(object sender, RoutedEventArgs e)

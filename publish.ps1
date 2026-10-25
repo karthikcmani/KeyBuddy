@@ -9,6 +9,8 @@ if (-not (Test-Path $dotnet)) {
 Set-Location $PSScriptRoot
 
 $publishDir = Join-Path $PSScriptRoot "publish"
+Get-Process KeyBuddy -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*KeyBuddy-App\publish*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
 if (Test-Path $publishDir) {
     Remove-Item -Path $publishDir -Recurse -Force
 }

@@ -107,9 +107,32 @@ public class PhysicalKeyHookService : IDisposable
         }
     }
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern short VkKeyScan(char ch);
+
     private static (uint primary, uint? secondary) ResolveVk(string keyName)
     {
-        string norm = keyName.Trim().ToUpperInvariant();
+        string norm = keyName.Trim();
+        if (string.IsNullOrEmpty(norm)) return (0, null);
+
+        string upper = norm.ToUpperInvariant();
+
+        // 1. Check special named keys
+        switch (upper)
+        {
+            case "SPACE": return (0x20, null);
+            case "TAB": return (0x09, null);
+            case "ENTER" or "RETURN": return (0x0D, null);
+            case "ESC" or "ESCAPE": return (0x1B, null);
+            case "BACKSPACE" or "BS" or "⌫": return (0x08, null);
+            case "DELETE" or "DEL": return (0x2E, null);
+            case "UP": return (0x26, null);
+            case "DOWN": return (0x28, null);
+            case "LEFT": return (0x25, null);
+            case "RIGHT": return (0x27, null);
+        }
+
+        // 2. Single character check (letters, digits, symbols, OEM keys)
         if (norm.Length == 1)
         {
             char c = norm[0];
@@ -117,23 +140,46 @@ public class PhysicalKeyHookService : IDisposable
             {
                 return ((uint)c, null);
             }
+            if (c >= 'a' && c <= 'z')
+            {
+                return ((uint)char.ToUpperInvariant(c), null);
+            }
             if (c >= '0' && c <= '9')
             {
                 uint baseVk = (uint)(0x30 + (c - '0'));
                 uint numpadVk = (uint)(0x60 + (c - '0'));
                 return (baseVk, numpadVk);
             }
+
+            // Common keyboard punctuation & OEM keys (including backslash!)
+            switch (c)
+            {
+                case '\\' or '|': return (0xDC, null); // VK_OEM_5
+                case '-' or '_': return (0xBD, null);  // VK_OEM_MINUS
+                case '=' or '+': return (0xBB, null);  // VK_OEM_PLUS
+                case '[' or '{': return (0xDB, null);  // VK_OEM_4
+                case ']' or '}': return (0xDD, null);  // VK_OEM_6
+                case ';' or ':': return (0xBA, null);  // VK_OEM_1
+                case '\'' or '"': return (0xDE, null); // VK_OEM_7
+                case ',' or '<': return (0xBC, null);  // VK_OEM_COMMA
+                case '.' or '>': return (0xBE, null);  // VK_OEM_PERIOD
+                case '/' or '?': return (0xBF, null);  // VK_OEM_2
+                case '`' or '~': return (0xC0, null);  // VK_OEM_3
+            }
+
+            // Universal fallback via Windows VkKeyScan
+            short scan = VkKeyScan(c);
+            if (scan != -1)
+            {
+                byte vk = (byte)(scan & 0xFF);
+                if (vk != 0)
+                {
+                    return (vk, null);
+                }
+            }
         }
 
-        return norm switch
-        {
-            "SPACE" => (0x20, null),
-            "TAB" => (0x09, null),
-            "ENTER" or "RETURN" => (0x0D, null),
-            "ESC" or "ESCAPE" => (0x1B, null),
-            "BACKSPACE" => (0x08, null),
-            _ => (0, null)
-        };
+        return (0, null);
     }
 
     public void Start()
@@ -230,8 +276,54 @@ public class PhysicalKeyHookService : IDisposable
 
             Thread.Sleep(25);
 
-            // 2. Type output key / text
-            string output = rule.Rule.OutputKey;
+            // 2. Type output key / text / action
+            string output = rule.Rule.OutputKey.Trim();
+            string upperOutput = output.ToUpperInvariant();
+
+            // Special non-character action keys (Backspace, Enter, Tab, Space, Delete, Esc)
+            if (upperOutput is "BACKSPACE" or "BS" or "⌫" or "{BACKSPACE}" or "{BS}")
+            {
+                // Send second Backspace to delete the character before the trigger key
+                _inputService.SendKeyPress(bsKey, _modifiers);
+                return;
+            }
+
+            if (upperOutput is "ENTER" or "RETURN" or "↵" or "{ENTER}")
+            {
+                var enterKey = KeyModel.Create("ENTER", "Enter", VirtualKeys.VK_RETURN);
+                _inputService.SendKeyPress(enterKey, _modifiers);
+                return;
+            }
+
+            if (upperOutput is "TAB" or "⇥" or "{TAB}")
+            {
+                var tabKey = KeyModel.Create("TAB", "Tab", VirtualKeys.VK_TAB);
+                _inputService.SendKeyPress(tabKey, _modifiers);
+                return;
+            }
+
+            if (upperOutput is "SPACE" or "␣" or "{SPACE}")
+            {
+                var spaceKey = KeyModel.Create("SPACE", " ", VirtualKeys.VK_SPACE);
+                _inputService.SendKeyPress(spaceKey, _modifiers);
+                return;
+            }
+
+            if (upperOutput is "DELETE" or "DEL" or "{DELETE}")
+            {
+                var delKey = KeyModel.Create("DELETE", "Delete", VirtualKeys.VK_DELETE);
+                _inputService.SendKeyPress(delKey, _modifiers);
+                return;
+            }
+
+            if (upperOutput is "ESC" or "ESCAPE" or "{ESC}")
+            {
+                var escKey = KeyModel.Create("ESC", "Esc", VirtualKeys.VK_ESCAPE);
+                _inputService.SendKeyPress(escKey, _modifiers);
+                return;
+            }
+
+            // Single letter or digit
             if (output.Length == 1 && char.IsLetterOrDigit(output[0]))
             {
                 char outChar = output[0];
@@ -253,7 +345,7 @@ public class PhysicalKeyHookService : IDisposable
                 }
             }
 
-            // Fallback for special symbols (e.g. '@', '$', '#', etc.) or text
+            // Fallback for special symbols (e.g. '@', '$', '#', etc.) or text / words
             _inputService.SendUnicodeText(output);
         }
         catch (Exception ex)
