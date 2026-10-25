@@ -1,0 +1,24 @@
+# Build and Output Folders
+bin/
+obj/
+publish/
+out/
+
+# User-specific settings & cache
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# Logs
+*.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

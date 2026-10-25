@@ -1,0 +1,107 @@
+<Window x:Class="KeyBuddy.SpecialKeysWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KeyBuddy Symbols"
+        Height="150"
+        Width="300"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="{StaticResource WindowBgBrush}"
+        Focusable="False"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="CanResizeWithGrip"
+        MinHeight="100"
+        MinWidth="180">
+
+    <Border BorderBrush="{StaticResource KeyBorderBrush}" BorderThickness="1">
+        <Grid Margin="5,3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="20" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Header with Title and Close '✕' button -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="OnTitleBarMouseDown" Background="Transparent" Cursor="SizeAll">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Special Symbols (~ ! @ # $ % ^ &amp; * ( ))"
+                           FontSize="10"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"
+                           Margin="2,0" />
+                <Button Grid.Column="1"
+                        Style="{StaticResource HeaderActionButtonStyle}"
+                        Click="OnCloseClick"
+                        Width="20"
+                        Height="18"
+                        Padding="0"
+                        Margin="0"
+                        Focusable="False"
+                        ToolTip="Close Symbols Window">
+                    <TextBlock Text="✕" FontSize="10" Foreground="#FF6B6B" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Button>
+            </Grid>
+
+            <!-- Symbols Grid: 3 rows with plenty of room and comfortable square keys -->
+            <Grid Grid.Row="1" Margin="0,3,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Row 1: ~ ! @ # -->
+                <UniformGrid Grid.Row="0" Columns="4">
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="~" ToolTip="Tilde (~)" Margin="2" Focusable="False">
+                        <TextBlock Text="~" FontSize="15" FontWeight="Bold" Foreground="#64B5F6" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="!" ToolTip="Exclamation (!)" Margin="2" Focusable="False">
+                        <TextBlock Text="!" FontSize="15" FontWeight="Bold" Foreground="#64B5F6" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="@" ToolTip="At (@)" Margin="2" Focusable="False">
+                        <TextBlock Text="@" FontSize="15" FontWeight="Bold" Foreground="#64B5F6" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="#" ToolTip="Hash (#)" Margin="2" Focusable="False">
+                        <TextBlock Text="#" FontSize="15" FontWeight="Bold" Foreground="#64B5F6" />
+                    </Button>
+                </UniformGrid>
+
+                <!-- Row 2: $ % ^ & -->
+                <UniformGrid Grid.Row="1" Columns="4">
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="$" ToolTip="Dollar ($)" Margin="2" Focusable="False">
+                        <TextBlock Text="$" FontSize="15" FontWeight="Bold" Foreground="#81C784" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="%" ToolTip="Percent (%)" Margin="2" Focusable="False">
+                        <TextBlock Text="%" FontSize="15" FontWeight="Bold" Foreground="#81C784" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="^" ToolTip="Caret (^)" Margin="2" Focusable="False">
+                        <TextBlock Text="^" FontSize="15" FontWeight="Bold" Foreground="#FFD54F" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="&amp;" ToolTip="Ampersand (&amp;)" Margin="2" Focusable="False">
+                        <TextBlock Text="&amp;" FontSize="15" FontWeight="Bold" Foreground="#FFD54F" />
+                    </Button>
+                </UniformGrid>
+
+                <!-- Row 3: * ( ) + Backspace helper -->
+                <UniformGrid Grid.Row="2" Columns="4">
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="*" ToolTip="Asterisk (*)" Margin="2" Focusable="False">
+                        <TextBlock Text="*" FontSize="15" FontWeight="Bold" Foreground="#FF8A65" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="(" ToolTip="Left Parenthesis ()" Margin="2" Focusable="False">
+                        <TextBlock Text="(" FontSize="15" FontWeight="Bold" Foreground="#BA68C8" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag=")" ToolTip="Right Parenthesis ()" Margin="2" Focusable="False">
+                        <TextBlock Text=")" FontSize="15" FontWeight="Bold" Foreground="#BA68C8" />
+                    </Button>
+                    <Button Style="{StaticResource VirtualKeyButtonStyle}" Click="OnSymbolClick" Tag="_" ToolTip="Underscore (_)" Margin="2" Focusable="False">
+                        <TextBlock Text="_" FontSize="15" FontWeight="Bold" Foreground="#90CAF9" />
+                    </Button>
+                </UniformGrid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{72501C5A-06F8-4469-9AFE-5C96B19BF1DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeyBuddy", "src\KeyBuddy\KeyBuddy.csproj", "{05230C1F-138B-4E19-A277-DD5EFE05C4D1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{347E16CB-C11F-4861-97A2-2490C4CCAAE4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeyBuddy.Tests", "tests\KeyBuddy.Tests\KeyBuddy.Tests.csproj", "{9AAD4C01-F407-4F12-B31F-E06A7D20BC28}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{05230C1F-138B-4E19-A277-DD5EFE05C4D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05230C1F-138B-4E19-A277-DD5EFE05C4D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05230C1F-138B-4E19-A277-DD5EFE05C4D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05230C1F-138B-4E19-A277-DD5EFE05C4D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9AAD4C01-F407-4F12-B31F-E06A7D20BC28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9AAD4C01-F407-4F12-B31F-E06A7D20BC28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9AAD4C01-F407-4F12-B31F-E06A7D20BC28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9AAD4C01-F407-4F12-B31F-E06A7D20BC28}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{05230C1F-138B-4E19-A277-DD5EFE05C4D1} = {72501C5A-06F8-4469-9AFE-5C96B19BF1DE}
+		{9AAD4C01-F407-4F12-B31F-E06A7D20BC28} = {347E16CB-C11F-4861-97A2-2490C4CCAAE4}
+	EndGlobalSection
+EndGlobal
