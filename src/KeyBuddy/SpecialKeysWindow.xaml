@@ -10,7 +10,7 @@
         Focusable="False"
         Topmost="True"
         ShowInTaskbar="False"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         MinHeight="50"
         MinWidth="180">
 

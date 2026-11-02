@@ -430,16 +430,6 @@ public partial class MainWindow : Window
             keys = new List<string> { "P", "4", "Backspace" };
         }
 
-        // Dynamically adjust window width if more than 3 keys
-        if (_viewModel.Settings.MiniTrioOnly)
-        {
-            double neededWidth = Math.Max(280, keys.Count * 95);
-            if (Width != neededWidth)
-            {
-                Width = neededWidth;
-            }
-        }
-
         for (int i = 0; i < keys.Count; i++)
         {
             string keyName = keys[i];
