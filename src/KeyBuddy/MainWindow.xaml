@@ -19,7 +19,7 @@
         Focusable="False"
         ShowInTaskbar="True"
         Icon="app.ico"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         MinHeight="65"
         MinWidth="180">
 
@@ -157,7 +157,7 @@
                     </Button>
 
                     <!-- Settings (only shown if needed, otherwise clean) -->
-                    <Button Style="{StaticResource HeaderActionButtonStyle}" Click="OnOpenSettingsWindowClick" ToolTip="Settings &amp; Customization" Padding="6,2">
+                    <Button Style="{StaticResource HeaderActionButtonStyle}" Click="OnOpenSettingsWindowClick" ToolTip="Settings &amp; Customization" Padding="6,2" Tag="SettingsButton">
                         <TextBlock Text="⚙️" />
                     </Button>
 
@@ -354,7 +354,8 @@
                                 ToolTip="Settings &amp; Key Customization"
                                 Margin="2,0,2,0"
                                 Padding="4,1"
-                                Focusable="False">
+                                Focusable="False"
+                                Tag="SettingsButton">
                             <TextBlock Text="⚙️" FontSize="11" />
                         </Button>
                     </Grid>

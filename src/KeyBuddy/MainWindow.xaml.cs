@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using KeyBuddy.Models;
 using KeyBuddy.Native;
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _foregroundPollTimer;
     private readonly SpecialKeysWindow _specialKeysWindow;
     private readonly PhysicalKeyHookService _physicalKeyHook;
+    private SettingsWindow? _settingsWindow;
     private HwndSource? _hwndSource;
 
     public MainWindow()
@@ -56,6 +58,9 @@ public partial class MainWindow : Window
 
         Loaded += OnMainWindowLoaded;
         Closing += OnMainWindowClosing;
+        LocationChanged += OnWindowLocationChanged;
+        SizeChanged += OnWindowSizeChanged;
+        PreviewMouseDown += OnMainWindowPreviewMouseDown;
     }
 
     private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
@@ -93,6 +98,28 @@ public partial class MainWindow : Window
             // Return MA_NOACTIVATE: window does not become the active window on click!
             handled = true;
             return new IntPtr(NativeMethods.MA_NOACTIVATE);
+        }
+
+        if (msg == 0x0084 /* WM_NCHITTEST */)
+        {
+            int x = (short)(lParam.ToInt32() & 0xFFFF);
+            int y = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
+            Point pt = PointFromScreen(new Point(x, y));
+
+            const int border = 6;
+            bool left = pt.X <= border;
+            bool right = pt.X >= ActualWidth - border;
+            bool top = pt.Y <= border;
+            bool bottom = pt.Y >= ActualHeight - border;
+
+            if (top && left) { handled = true; return new IntPtr(13 /* HTTOPLEFT */); }
+            if (top && right) { handled = true; return new IntPtr(14 /* HTTOPRIGHT */); }
+            if (bottom && left) { handled = true; return new IntPtr(16 /* HTBOTTOMLEFT */); }
+            if (bottom && right) { handled = true; return new IntPtr(17 /* HTBOTTOMRIGHT */); }
+            if (left) { handled = true; return new IntPtr(10 /* HTLEFT */); }
+            if (right) { handled = true; return new IntPtr(11 /* HTRIGHT */); }
+            if (top) { handled = true; return new IntPtr(12 /* HTTOP */); }
+            if (bottom) { handled = true; return new IntPtr(15 /* HTBOTTOM */); }
         }
 
         return IntPtr.Zero;
@@ -260,24 +287,97 @@ public partial class MainWindow : Window
         }
         else
         {
-            // Position it aligned to the same left and width as the 3-key drag bar
+            double currentWidth = ActualWidth > 0 ? ActualWidth : Width;
+            double currentHeight = ActualHeight > 0 ? ActualHeight : Height;
+
+            _specialKeysWindow.Width = currentWidth;
+            _specialKeysWindow.Height = currentHeight;
             _specialKeysWindow.Left = Left;
-            _specialKeysWindow.Width = Width;
 
-            // Height is comfortably calculated or defaults to 140
-            double desiredHeight = Math.Max(120, Height * 1.3);
-            _specialKeysWindow.Height = desiredHeight;
-
-            if (Top >= desiredHeight + 10)
+            if (Top >= currentHeight + 4)
             {
-                _specialKeysWindow.Top = Top - desiredHeight - 6;
+                _specialKeysWindow.Top = Top - currentHeight - 4;
             }
             else
             {
-                _specialKeysWindow.Top = Top + Height + 6;
+                _specialKeysWindow.Top = Top + currentHeight + 4;
             }
+
             _specialKeysWindow.Show();
         }
+    }
+
+    private void SyncSpecialKeysWindowPositionAndSize()
+    {
+        if (_specialKeysWindow == null || !_specialKeysWindow.IsVisible) return;
+
+        double currentWidth = ActualWidth > 0 ? ActualWidth : Width;
+        double currentHeight = ActualHeight > 0 ? ActualHeight : Height;
+
+        _specialKeysWindow.Width = currentWidth;
+        _specialKeysWindow.Height = currentHeight;
+        _specialKeysWindow.Left = Left;
+
+        if (Top >= currentHeight + 4)
+        {
+            _specialKeysWindow.Top = Top - currentHeight - 4;
+        }
+        else
+        {
+            _specialKeysWindow.Top = Top + currentHeight + 4;
+        }
+    }
+
+    private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_viewModel?.Settings != null && IsLoaded)
+        {
+            _viewModel.Settings.WindowWidth = ActualWidth;
+            _viewModel.Settings.WindowHeight = ActualHeight;
+            _viewModel.Settings.Save();
+        }
+
+        SyncSpecialKeysWindowPositionAndSize();
+    }
+
+    private void OnWindowLocationChanged(object? sender, EventArgs e)
+    {
+        if (_viewModel?.Settings != null && IsLoaded)
+        {
+            _viewModel.Settings.WindowLeft = Left;
+            _viewModel.Settings.WindowTop = Top;
+            _viewModel.Settings.Save();
+        }
+
+        SyncSpecialKeysWindowPositionAndSize();
+    }
+
+    private void OnMainWindowPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_settingsWindow != null && _settingsWindow.IsVisible)
+        {
+            _settingsWindow.Close();
+            _settingsWindow = null;
+
+            if (e.OriginalSource is DependencyObject dep)
+            {
+                var btn = FindParent<Button>(dep);
+                if (btn != null && Equals(btn.Tag, "SettingsButton"))
+                {
+                    e.Handled = true;
+                }
+            }
+        }
+    }
+
+    private static T? FindParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child != null)
+        {
+            if (child is T parent) return parent;
+            child = VisualTreeHelper.GetParent(child);
+        }
+        return null;
     }
 
     private bool _explicitCloseRequested = false;
@@ -380,9 +480,8 @@ public partial class MainWindow : Window
 
         var viewbox = new Viewbox
         {
-            MaxHeight = 72,
-            MaxWidth = 110,
-            Stretch = System.Windows.Media.Stretch.Uniform
+            Stretch = System.Windows.Media.Stretch.Uniform,
+            Margin = new Thickness(4)
         };
 
         var tb = new TextBlock
@@ -452,9 +551,21 @@ public partial class MainWindow : Window
 
     private void OnOpenSettingsWindowClick(object sender, RoutedEventArgs e)
     {
-        var win = new SettingsWindow(_viewModel.Settings, OnSettingsApplied);
-        win.Owner = this;
-        win.ShowDialog();
+        if (_settingsWindow != null && _settingsWindow.IsVisible)
+        {
+            _settingsWindow.Close();
+            _settingsWindow = null;
+            return;
+        }
+
+        _settingsWindow = new SettingsWindow(_viewModel.Settings, OnSettingsApplied)
+        {
+            Owner = this,
+            Topmost = true
+        };
+        _settingsWindow.Closed += (s, args) => _settingsWindow = null;
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
     }
 
     public void ApplyLayoutModeDimensions()
@@ -462,14 +573,24 @@ public partial class MainWindow : Window
         if (_viewModel.Settings.MiniTrioOnly)
         {
             int keyCount = _viewModel.Settings.QuickBarKeys?.Count ?? 3;
-            double desiredWidth = Math.Max(280, keyCount * 78);
-            Width = desiredWidth;
-            Height = 95;
-            MinWidth = 200;
-            MinHeight = 85;
-            ResizeMode = ResizeMode.NoResize;
-            _viewModel.Settings.WindowWidth = Width;
-            _viewModel.Settings.WindowHeight = Height;
+            double minW = Math.Max(200, keyCount * 50);
+            MinWidth = minW;
+            MinHeight = 65;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+
+            if (_viewModel.Settings.WindowWidth < minW || _viewModel.Settings.WindowHeight < 65)
+            {
+                Width = Math.Max(280, keyCount * 78);
+                Height = 95;
+                _viewModel.Settings.WindowWidth = Width;
+                _viewModel.Settings.WindowHeight = Height;
+            }
+            else
+            {
+                Width = _viewModel.Settings.WindowWidth;
+                Height = _viewModel.Settings.WindowHeight;
+            }
+
             BuildQuickBarGrid();
         }
         else
@@ -481,12 +602,13 @@ public partial class MainWindow : Window
             }
             MinWidth = 650;
             MinHeight = 240;
-            ResizeMode = ResizeMode.CanResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             _viewModel.Settings.WindowWidth = Width;
             _viewModel.Settings.WindowHeight = Height;
         }
 
         ValidateWindowBounds();
+        SyncSpecialKeysWindowPositionAndSize();
     }
 
     private void OnSettingsApplied(AppSettings newSettings)
@@ -515,6 +637,8 @@ public partial class MainWindow : Window
         _foregroundPollTimer.Stop();
         _physicalKeyHook.Dispose();
         _specialKeysWindow.Close();
+        _settingsWindow?.Close();
+        _settingsWindow = null;
         _hwndSource?.RemoveHook(WndProc);
         _viewModel.Cleanup();
     }

@@ -7,6 +7,7 @@
         WindowStartupLocation="CenterScreen"
         Background="#18181E"
         Foreground="#ECEFF1"
+        Topmost="True"
         Icon="app.ico">
 
     <Window.Resources>
